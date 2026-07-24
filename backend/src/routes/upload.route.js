@@ -10,4 +10,10 @@ router.post(
   uploadController.uploadOrders
 );
 
+router.post(
+  "/",
+  upload.single("file"),
+  uploadController.uploadOrders
+);
+
 module.exports = router;
