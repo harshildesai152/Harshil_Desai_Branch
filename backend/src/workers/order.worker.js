@@ -21,7 +21,7 @@ const worker = new Worker(
         buffer = Buffer.from(buffer.data);
       }
 
-      // Count newlines in the buffer to determine total rows
+
       let totalLines = 0;
       for (let i = 0; i < buffer.length; i++) {
         if (buffer[i] === 10) { // '\n'
@@ -31,7 +31,7 @@ const worker = new Worker(
       if (buffer.length > 0 && buffer[buffer.length - 1] !== 10) {
         totalLines++;
       }
-      const totalRecords = Math.max(0, totalLines - 1); // Exclude CSV header line
+      const totalRecords = Math.max(0, totalLines - 1);
       console.log(`Estimated records to process: ${totalRecords}`);
 
       const BATCH_SIZE = 500;
@@ -125,7 +125,7 @@ const worker = new Worker(
       });
     } catch (error) {
       console.error(`[WORKER ERROR]`, error);
-      throw error; // BullMQ marks the job as failed
+      throw error;
     }
   },
   {

@@ -5,7 +5,7 @@ const jobRoute = require("./routes/job.route");
 
 const app = express();
 
-// CORS Middleware
+
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -16,10 +16,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Parse JSON payloads
 app.use(express.json());
 
-// Base Route
 app.get('/', (req, res) => {
   res.json({ message: "Backend Running" });
 });

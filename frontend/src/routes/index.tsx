@@ -4,15 +4,13 @@ import {
   Upload,
   Database,
   Cloud,
-  Activity,
+
   CheckCircle2,
   FileSpreadsheet,
   Server,
   GitBranch,
   Layers,
-  Clock,
-  Zap,
-  RefreshCw,
+
   Search,
 } from "lucide-react";
 
@@ -64,7 +62,7 @@ interface Order {
 }
 
 function Index() {
-  // Real stats states
+
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [dragActive, setDragActive] = React.useState(false);
   const [progress, setProgress] = React.useState(100);
@@ -76,7 +74,7 @@ function Index() {
   const [batches, setBatches] = React.useState(0);
   const [totalRows, setTotalRows] = React.useState(0);
 
-  // Real-time metrics
+
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const [shards, setShards] = React.useState<Shard[]>([
@@ -92,7 +90,7 @@ function Index() {
 
   const [orders, setOrders] = React.useState<Order[]>([]);
 
-  // Fetch recent orders
+
   const fetchOrders = async (customerId?: string) => {
     try {
       const url = customerId
@@ -108,7 +106,7 @@ function Index() {
     }
   };
 
-  // Fetch shard stats
+
   const fetchShardStats = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/orders/shards`);
@@ -121,13 +119,13 @@ function Index() {
     }
   };
 
-  // Load initial data on mount
+
   React.useEffect(() => {
     fetchOrders();
     fetchShardStats();
   }, []);
 
-  // Handle Drag Over / Leave
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -138,7 +136,7 @@ function Index() {
     }
   };
 
-  // Handle real file upload & polling
+
   const handleUploadFile = async (file: File) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -151,7 +149,7 @@ function Index() {
     setBatches(0);
     setTotalRows(0);
 
-    const startTime = new Date();
+
     const timestampStr = () => {
       const now = new Date();
       return now.toTimeString().split(" ")[0];
@@ -209,7 +207,7 @@ function Index() {
             setBatches(bCount);
             setTotalRows(totalRecords || 0);
 
-            // Compute actual ingestion throughput
+
 
             setLogs((prev) => {
               const newLogs = [...prev];
@@ -230,7 +228,7 @@ function Index() {
             setIsProcessing(false);
             setProgress(100);
 
-            // Refresh recent orders and shard stats
+
             fetchOrders();
             fetchShardStats();
 
@@ -282,31 +280,6 @@ function Index() {
     }
   };
 
-  // Simulate ingestion flow by generating and uploading a real mock CSV file
-  const handleSimulateIngest = () => {
-    let csvContent = "order_id,customer_id,order_date,order_amount,status\n";
-    // Generate 1000 orders
-    for (let i = 1; i <= 1000; i++) {
-      const orderId = `ord_sim_${Math.random().toString(36).substring(2, 12)}`;
-      const customerId = `cus_${10000 + Math.floor(Math.random() * 89999)}`;
-      const orderDate = new Date(Date.now() - Math.random() * 1000000000).toISOString();
-      const orderAmount = (10 + Math.random() * 990).toFixed(2);
-      const status = ["COMPLETED", "PENDING", "PROCESSING", "CANCELLED"][Math.floor(Math.random() * 4)];
-      csvContent += `${orderId},${customerId},${orderDate},${orderAmount},${status}\n`;
-    }
-    // Add 15 invalid rows to showcase validation error detection
-    csvContent += `ord_invalid_1,,2026-07-24T10:00:00Z,99.99,COMPLETED\n`; // missing customerId
-    csvContent += `ord_invalid_2,cus_22222,,99.99,PENDING\n`; // missing orderDate
-    csvContent += `ord_invalid_3,cus_33333,2026-07-24T10:00:00Z,abc,PROCESSING\n`; // invalid amount
-    csvContent += `ord_invalid_4,cus_44444,2026-07-24T10:00:00Z,99.99,\n`; // missing status
-    for (let i = 5; i <= 15; i++) {
-      csvContent += `ord_invalid_${i},,2026-07-24T10:00:00Z,10.00,\n`; // bad status and customerId
-    }
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const file = new File([blob], `simulated_orders_${Math.floor(Math.random() * 9000 + 1000)}.csv`, { type: "text/csv" });
-    handleUploadFile(file);
-  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -324,7 +297,7 @@ function Index() {
     }
   };
 
-  // Filter orders by customer ID or shard
+
   const filteredOrders = orders.filter(
     (o) =>
       o.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -334,11 +307,11 @@ function Index() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-all duration-300 font-sans">
-      {/* Soft Premium Light Accents */}
+
       <div className="absolute top-0 left-1/4 -z-10 h-96 w-96 rounded-full bg-indigo-500/5 blur-[128px] pointer-events-none" />
       <div className="absolute top-[40vh] right-1/4 -z-10 h-[400px] w-[400px] rounded-full bg-emerald-500/5 blur-[160px] pointer-events-none" />
 
-      {/* Header */}
+
       <header className="sticky top-0 z-50 border-b border-border bg-white/80 backdrop-blur-md transition-all">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
@@ -385,7 +358,7 @@ function Index() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-10 relative">
-        {/* Hero */}
+
         <section className="mb-10">
           <div className="flex flex-col gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
@@ -401,9 +374,9 @@ function Index() {
           </div>
         </section>
 
-        {/* Top section: Upload */}
+
         <section className="w-full">
-          {/* Upload card */}
+
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm hover:border-slate-300 transition-all">
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -419,7 +392,7 @@ function Index() {
               </div>
             </div>
 
-            {/* Drag and Drop Zone */}
+
             <div
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
@@ -455,7 +428,7 @@ function Index() {
               </button>
             </div>
 
-            {/* Ingestion progress card */}
+
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/50 p-5 relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -486,7 +459,7 @@ function Index() {
                 </span>
               </div>
 
-              {/* Progress bar */}
+
               <div className="mt-4">
                 <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground font-medium">
                   <span>Streaming · Parse · Validate · Batch insert</span>
@@ -517,7 +490,7 @@ function Index() {
           </div>
         </section>
 
-        {/* Shard fleet */}
+
         <section className="mt-10">
           <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
@@ -538,9 +511,9 @@ function Index() {
           </div>
         </section>
 
-        {/* Pipeline + Logs */}
+
         <section className="mt-10 grid gap-6 lg:grid-cols-5">
-          {/* Pipeline diagram */}
+
           <div className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-5 text-base font-bold text-slate-900">Ingestion pipeline architecture</h2>
             <ol className="space-y-4">
@@ -568,7 +541,7 @@ function Index() {
             </ol>
           </div>
 
-          {/* Logs */}
+
           <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 flex flex-col shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-bold text-slate-900">Live logs</h2>
@@ -589,7 +562,6 @@ function Index() {
           </div>
         </section>
 
-        {/* Recent orders table */}
         <section className="mt-10 rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-250 px-6 py-4 gap-3 bg-slate-50/50">
             <div>
@@ -660,7 +632,7 @@ function Index() {
           </div>
         </section>
 
-        {/* Footer info strip */}
+
         <section className="mt-10 grid gap-4 md:grid-cols-3">
           <InfoTile
             icon={<Cloud className="h-4 w-4" />}
@@ -687,7 +659,7 @@ function Index() {
   );
 }
 
-/* ---------- helpers ---------- */
+
 
 function MetricCard({
   icon,
@@ -833,7 +805,7 @@ function levelClass(level: string) {
   return "text-indigo-400";
 }
 
-/* ---------- static data ---------- */
+
 
 const PIPELINE = [
   { title: "Multipart Upload & GCS Archival", tag: "POST /api/orders/upload", desc: "Express controller validates file and streams it to Google Cloud Storage (runs in LOCAL_MOCK if keys are missing)." },
