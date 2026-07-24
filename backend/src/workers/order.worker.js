@@ -67,9 +67,15 @@ const worker = new Worker(
               await orderRepository.createManyOrders(batch);
               console.log(`[BATCH INSERTED] ${batch.length} records`);
 
-              const progress = totalRecords > 0 ? Math.round((validCount / totalRecords) * 100) : 50;
-              await job.updateProgress(Math.min(99, progress));
-              console.log(`Progress: ${progress}% (${validCount} valid records)`);
+              const progressPercent = totalRecords > 0 ? Math.round((validCount / totalRecords) * 100) : 50;
+              await job.updateProgress({
+                progress: Math.min(99, progressPercent),
+                validCount,
+                invalidCount,
+                totalRecords,
+                batches: Math.floor(validCount / BATCH_SIZE),
+              });
+              console.log(`Progress: ${progressPercent}% (${validCount} valid records)`);
 
               batch = [];
             } catch (err) {
@@ -95,7 +101,13 @@ const worker = new Worker(
               `[PROCESSING COMPLETE] Valid: ${validCount}, Invalid: ${invalidCount}`
             );
 
-            await job.updateProgress(100);
+            await job.updateProgress({
+              progress: 100,
+              validCount,
+              invalidCount,
+              totalRecords,
+              batches: Math.floor(validCount / BATCH_SIZE),
+            });
 
             resolve({
               valid: validCount,

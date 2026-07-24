@@ -1,8 +1,20 @@
 const express = require('express');
 const orderRoute = require("./routes/order.route");
 const uploadRoute = require("./routes/upload.route");
+const jobRoute = require("./routes/job.route");
 
 const app = express();
+
+// CORS Middleware
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Parse JSON payloads
 app.use(express.json());
@@ -14,6 +26,8 @@ app.get('/', (req, res) => {
 
 app.use("/orders", orderRoute);
 app.use("/api/orders", uploadRoute);
+app.use("/upload-orders", uploadRoute);
+app.use("/api/jobs", jobRoute);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

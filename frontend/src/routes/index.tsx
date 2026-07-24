@@ -16,6 +16,8 @@ import {
   Search,
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -62,49 +64,68 @@ interface Order {
 }
 
 function Index() {
-  // Mock states
+  // Real stats states
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [dragActive, setDragActive] = React.useState(false);
   const [progress, setProgress] = React.useState(100);
-  const [fileName, setFileName] = React.useState("orders_2026_07_24.csv");
-  const [fileSize, setFileSize] = React.useState("12.4 MB");
-  const [parsedRows, setParsedRows] = React.useState(10000);
-  const [validRows, setValidRows] = React.useState(9842);
-  const [skippedRows, setSkippedRows] = React.useState(158);
-  const [batches, setBatches] = React.useState(20);
-  
-  // Real-time fluctuating state
-  const [throughput, setThroughput] = React.useState("4,120 rows/s");
-  const [avgTime, setAvgTime] = React.useState("2.4s");
+  const [fileName, setFileName] = React.useState("No file selected");
+  const [fileSize, setFileSize] = React.useState("0 KB");
+  const [parsedRows, setParsedRows] = React.useState(0);
+  const [validRows, setValidRows] = React.useState(0);
+  const [skippedRows, setSkippedRows] = React.useState(0);
+  const [batches, setBatches] = React.useState(0);
+  const [totalRows, setTotalRows] = React.useState(0);
+
+  // Real-time metrics
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const [shards, setShards] = React.useState<Shard[]>([
-    { name: "shard-0", host: "pg-orders-0.internal:5432", rows: "2,481", load: 62, status: "healthy" },
-    { name: "shard-1", host: "pg-orders-1.internal:5432", rows: "2,509", load: 68, status: "healthy" },
-    { name: "shard-2", host: "pg-orders-2.internal:5432", rows: "2,472", load: 84, status: "degraded" },
-    { name: "shard-3", host: "pg-orders-3.internal:5432", rows: "2,538", load: 57, status: "healthy" },
+    { name: "shard-0", host: "localhost:5432 (orders_p0)", rows: "0", load: 0, status: "healthy" },
+    { name: "shard-1", host: "localhost:5432 (orders_p1)", rows: "0", load: 0, status: "healthy" },
+    { name: "shard-2", host: "localhost:5432 (orders_p2)", rows: "0", load: 0, status: "healthy" },
+    { name: "shard-3", host: "localhost:5432 (orders_p3)", rows: "0", load: 0, status: "healthy" },
   ]);
 
   const [logs, setLogs] = React.useState<LogItem[]>([
-    { t: "10:24:01", level: "INFO", msg: "upload received orders_2026_07_24.csv (12.4MB)" },
-    { t: "10:24:01", level: "OK", msg: "GCS upload started via ADC" },
-    { t: "10:24:03", level: "OK", msg: "GCS upload complete gs://ordershard-prod/uploads" },
-    { t: "10:24:03", level: "INFO", msg: "stream parse started" },
-    { t: "10:24:04", level: "WARN", msg: "row 812 invalid order_amount → dead-letter" },
-    { t: "10:24:04", level: "INFO", msg: "shard-2 batch #7 inserted (500 rows)" },
-    { t: "10:24:05", level: "ERROR", msg: "shard-2 tx retry (deadlock_detected)" },
-    { t: "10:24:05", level: "OK", msg: "shard-2 tx retry succeeded" },
-    { t: "10:24:06", level: "OK", msg: "ingest complete · 9,842 ok · 158 skipped" },
+    { t: new Date().toTimeString().split(" ")[0], level: "INFO", msg: "Console initialized. Ready to receive order uploads." }
   ]);
 
-  const [orders, setOrders] = React.useState<Order[]>([
-    { id: "ord_7f3a8b2c91", customer: "cus_10428", date: "2026-07-24 10:22", amount: "142.90", status: "completed", shard: "shard-0" },
-    { id: "ord_82bd921f04", customer: "cus_98110", date: "2026-07-24 10:19", amount: "58.00", status: "shipped", shard: "shard-2" },
-    { id: "ord_1c4e927a7a", customer: "cus_20033", date: "2026-07-24 10:11", amount: "1,204.50", status: "pending", shard: "shard-1" },
-    { id: "ord_9de12aa322", customer: "cus_44819", date: "2026-07-24 10:03", amount: "17.25", status: "failed", shard: "shard-3" },
-    { id: "ord_55aa29fcbf", customer: "cus_10428", date: "2026-07-24 09:58", amount: "329.00", status: "completed", shard: "shard-0" },
-    { id: "ord_6b0f192b13", customer: "cus_77120", date: "2026-07-24 09:41", amount: "84.75", status: "completed", shard: "shard-1" },
-  ]);
+  const [orders, setOrders] = React.useState<Order[]>([]);
+
+  // Fetch recent orders
+  const fetchOrders = async (customerId?: string) => {
+    try {
+      const url = customerId
+        ? `${API_BASE_URL}/orders?customerId=${encodeURIComponent(customerId)}`
+        : `${API_BASE_URL}/orders?limit=30`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setOrders(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    }
+  };
+
+  // Fetch shard stats
+  const fetchShardStats = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/orders/shards`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setShards(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch shard stats:", error);
+    }
+  };
+
+  // Load initial data on mount
+  React.useEffect(() => {
+    fetchOrders();
+    fetchShardStats();
+  }, []);
 
   // Handle Drag Over / Leave
   const handleDrag = (e: React.DragEvent) => {
@@ -117,17 +138,18 @@ function Index() {
     }
   };
 
-  // Simulate ingestion flow
-  const runIngestionSimulation = (selectedFileName: string, sizeStr: string) => {
+  // Handle real file upload & polling
+  const handleUploadFile = async (file: File) => {
     if (isProcessing) return;
     setIsProcessing(true);
     setProgress(0);
-    setFileName(selectedFileName);
-    setFileSize(sizeStr);
+    setFileName(file.name);
+    setFileSize((file.size / (1024 * 1024)).toFixed(1) + " MB");
     setParsedRows(0);
     setValidRows(0);
     setSkippedRows(0);
     setBatches(0);
+    setTotalRows(0);
 
     const startTime = new Date();
     const timestampStr = () => {
@@ -135,159 +157,155 @@ function Index() {
       return now.toTimeString().split(" ")[0];
     };
 
-    // Initialize fresh simulation logs
-    const initialLogs: LogItem[] = [
-      { t: timestampStr(), level: "INFO", msg: `Upload received: ${selectedFileName} (${sizeStr})` },
-      { t: timestampStr(), level: "OK", msg: "GCS upload channel established via Application Default Credentials" },
-    ];
-    setLogs(initialLogs);
+    setLogs([
+      { t: timestampStr(), level: "INFO", msg: `Upload started: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)` },
+      { t: timestampStr(), level: "OK", msg: "Uploading file to Google Cloud Storage via backend..." },
+    ]);
 
-    // Initial low throughput while uploading
-    setThroughput("Computing...");
-    setAvgTime("...");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        const nextProgress = prev + 5;
-        const currentT = timestampStr();
-
-        // Stage 1: Uploading to GCS (0% - 30%)
-        if (nextProgress === 20) {
-          setLogs((prevLogs) => [
-            ...prevLogs,
-            { t: currentT, level: "INFO", msg: "Streaming blocks to gs://ordershard-prod/uploads" },
-          ]);
-        }
-        if (nextProgress === 35) {
-          setLogs((prevLogs) => [
-            ...prevLogs,
-            { t: currentT, level: "OK", msg: `GCS storage write committed successfully (URI: gs://ordershard-prod/uploads/${selectedFileName})` },
-            { t: currentT, level: "INFO", msg: "Initializing fast-csv parser & starting stream validation..." },
-          ]);
-          setThroughput("1,250 rows/s");
-        }
-
-        // Stage 2: Ingesting & routing (35% - 90%)
-        if (nextProgress > 35 && nextProgress < 95) {
-          // Increment rows
-          const stepPercent = (nextProgress - 35) / 55;
-          const rowsParsed = Math.floor(10000 * stepPercent);
-          const rowsSkipped = Math.floor(160 * stepPercent);
-          const rowsValid = rowsParsed - rowsSkipped;
-          const currentBatches = Math.floor(rowsParsed / 500);
-
-          setParsedRows(rowsParsed);
-          setValidRows(rowsValid);
-          setSkippedRows(rowsSkipped);
-          setBatches(currentBatches);
-
-          // Fluctuating throughput
-          const dynamicThroughput = 3800 + Math.floor(Math.random() * 800);
-          setThroughput(`${dynamicThroughput.toLocaleString()} rows/s`);
-
-          // Occasionally inject parser logs or warnings
-          if (nextProgress === 50) {
-            setLogs((prevLogs) => [
-              ...prevLogs,
-              { t: currentT, level: "WARN", msg: `Row ${Math.floor(rowsParsed + 120)} has negative order_amount. Written to Dead-Letter Queues.` },
-            ]);
-            // Simulate shard-2 load spike
-            setShards((prevShards) =>
-              prevShards.map((s) => (s.name === "shard-2" ? { ...s, load: 92, status: "degraded" } : s))
-            );
-          }
-          if (nextProgress === 65) {
-            setLogs((prevLogs) => [
-              ...prevLogs,
-              { t: currentT, level: "INFO", msg: `Batch insert active: shard-0 (${currentBatches} batches), shard-1, shard-2, shard-3` },
-            ]);
-          }
-          if (nextProgress === 75) {
-            setLogs((prevLogs) => [
-              ...prevLogs,
-              { t: currentT, level: "ERROR", msg: "Database deadlock detected on shard-2. Retrying active transaction block..." },
-            ]);
-            setShards((prevShards) =>
-              prevShards.map((s) => (s.name === "shard-2" ? { ...s, load: 97 } : s))
-            );
-          }
-          if (nextProgress === 80) {
-            setLogs((prevLogs) => [
-              ...prevLogs,
-              { t: currentT, level: "OK", msg: "Shard-2 retry completed successfully in 120ms." },
-            ]);
-            setShards((prevShards) =>
-              prevShards.map((s) => (s.name === "shard-2" ? { ...s, load: 74, status: "healthy" } : s))
-            );
-          }
-
-          // Inject random mock orders in the recent list
-          if (nextProgress % 15 === 0) {
-            const randomId = Math.random().toString(16).substring(2, 6);
-            const randomAmount = (40 + Math.random() * 900).toFixed(2);
-            const randomShard = `shard-${Math.floor(Math.random() * 4)}`;
-            const randomCustomer = `cus_${10000 + Math.floor(Math.random() * 89999)}`;
-            
-            const newOrder: Order = {
-              id: `ord_${randomId}…${Math.floor(Math.random()*90 + 10)}`,
-              customer: randomCustomer,
-              date: "Just Now",
-              amount: parseFloat(randomAmount).toLocaleString(undefined, { minimumFractionDigits: 2 }),
-              status: "completed",
-              shard: randomShard,
-            };
-            setOrders((prev) => [newOrder, ...prev.slice(0, 5)]);
-
-            // Increment rows on that shard
-            setShards((prevShards) =>
-              prevShards.map((s) => {
-                if (s.name === randomShard) {
-                  const updatedRows = parseInt(s.rows.replace(/,/g, "")) + 125;
-                  return {
-                    ...s,
-                    rows: updatedRows.toLocaleString(),
-                    load: Math.min(90, 45 + Math.floor(Math.random() * 35)),
-                  };
-                }
-                return s;
-              })
-            );
-          }
-        }
-
-        // Stage 3: Finished (100%)
-        if (nextProgress >= 100) {
-          clearInterval(interval);
-          setParsedRows(10000);
-          setValidRows(9842);
-          setSkippedRows(158);
-          setBatches(20);
-          setLogs((prevLogs) => [
-            ...prevLogs,
-            { t: currentT, level: "OK", msg: "Ingestion pipeline flush complete. Connections returned to pool." },
-            { t: currentT, level: "OK", msg: "Ingest report: 10,000 parsed · 9,842 successfully inserted · 158 skipped" },
-          ]);
-          setThroughput("4,120 rows/s");
-          
-          // Compute mock execution time
-          const duration = ((new Date().getTime() - startTime.getTime()) / 1000).toFixed(1);
-          setAvgTime(`${duration}s`);
-          setIsProcessing(false);
-
-          // Calibrate shard loads back to idle values
-          setShards([
-            { name: "shard-0", host: "pg-orders-0.internal:5432", rows: "2,481", load: 62, status: "healthy" },
-            { name: "shard-1", host: "pg-orders-1.internal:5432", rows: "2,509", load: 68, status: "healthy" },
-            { name: "shard-2", host: "pg-orders-2.internal:5432", rows: "2,472", load: 84, status: "degraded" },
-            { name: "shard-3", host: "pg-orders-3.internal:5432", rows: "2,538", load: 57, status: "healthy" },
-          ]);
-
-          return 100;
-        }
-
-        return nextProgress;
+      const res = await fetch(`${API_BASE_URL}/api/orders/upload`, {
+        method: "POST",
+        body: formData,
       });
-    }, 450);
+
+      if (!res.ok) {
+        throw new Error(`Upload failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Upload failed");
+      }
+
+      const jobId = data.jobId;
+      const currentT = timestampStr();
+      setLogs((prev) => [
+        ...prev,
+        { t: currentT, level: "OK", msg: `GCS storage write committed successfully (Job ID: ${jobId})` },
+        { t: currentT, level: "INFO", msg: "Initializing fast-csv parser & starting stream validation..." },
+      ]);
+
+      const interval = setInterval(async () => {
+        try {
+          const pollRes = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
+          const pollData = await pollRes.json();
+          if (!pollData.success) {
+            throw new Error(pollData.message || "Failed to poll job status");
+          }
+
+          const tStr = timestampStr();
+          const state = pollData.status;
+          const progressInfo = pollData.progress;
+
+          if (progressInfo && typeof progressInfo === "object") {
+            const { progress: pVal, validCount, invalidCount, totalRecords, batches: bCount } = progressInfo;
+            setProgress(pVal || 0);
+            setParsedRows(validCount + invalidCount);
+            setValidRows(validCount);
+            setSkippedRows(invalidCount);
+            setBatches(bCount);
+            setTotalRows(totalRecords || 0);
+
+            // Compute actual ingestion throughput
+
+            setLogs((prev) => {
+              const newLogs = [...prev];
+              const lastWarn = prev.filter(l => l.level === "WARN").pop();
+              if (invalidCount > 0 && (!lastWarn || !lastWarn.msg.includes(`${invalidCount} invalid`))) {
+                newLogs.push({
+                  t: tStr,
+                  level: "WARN",
+                  msg: `Row validation warning: ${invalidCount} invalid rows detected and filtered.`
+                });
+              }
+              return newLogs;
+            });
+          }
+
+          if (state === "completed") {
+            clearInterval(interval);
+            setIsProcessing(false);
+            setProgress(100);
+
+            // Refresh recent orders and shard stats
+            fetchOrders();
+            fetchShardStats();
+
+            const finalT = timestampStr();
+
+            const result = pollData.result || {};
+            const finalValid = result.valid || 0;
+            const finalInvalid = result.invalid || 0;
+            const finalTotal = finalValid + finalInvalid;
+
+            setParsedRows(finalTotal);
+            setValidRows(finalValid);
+            setSkippedRows(finalInvalid);
+            setTotalRows(finalTotal);
+
+            setLogs((prev) => [
+              ...prev,
+              { t: finalT, level: "OK", msg: "Ingestion pipeline flush complete. Connections returned to pool." },
+              { t: finalT, level: "OK", msg: `Ingest report: ${finalTotal.toLocaleString()} parsed · ${finalValid.toLocaleString()} successfully inserted · ${finalInvalid.toLocaleString()} skipped` },
+            ]);
+          } else if (state === "failed") {
+            clearInterval(interval);
+            setIsProcessing(false);
+            const finalT = timestampStr();
+            setLogs((prev) => [
+              ...prev,
+              { t: finalT, level: "ERROR", msg: `Ingestion failed: ${pollData.failedReason || "Unknown database/worker error"}` },
+            ]);
+            fetchOrders();
+            fetchShardStats();
+          }
+        } catch (err: any) {
+          clearInterval(interval);
+          setIsProcessing(false);
+          const finalT = timestampStr();
+          setLogs((prev) => [
+            ...prev,
+            { t: finalT, level: "ERROR", msg: `Polling error: ${err.message}` },
+          ]);
+        }
+      }, 800);
+    } catch (err: any) {
+      setIsProcessing(false);
+      const finalT = timestampStr();
+      setLogs((prev) => [
+        ...prev,
+        { t: finalT, level: "ERROR", msg: `Ingestion failed: ${err.message}` },
+      ]);
+    }
+  };
+
+  // Simulate ingestion flow by generating and uploading a real mock CSV file
+  const handleSimulateIngest = () => {
+    let csvContent = "order_id,customer_id,order_date,order_amount,status\n";
+    // Generate 1000 orders
+    for (let i = 1; i <= 1000; i++) {
+      const orderId = `ord_sim_${Math.random().toString(36).substring(2, 12)}`;
+      const customerId = `cus_${10000 + Math.floor(Math.random() * 89999)}`;
+      const orderDate = new Date(Date.now() - Math.random() * 1000000000).toISOString();
+      const orderAmount = (10 + Math.random() * 990).toFixed(2);
+      const status = ["COMPLETED", "PENDING", "PROCESSING", "CANCELLED"][Math.floor(Math.random() * 4)];
+      csvContent += `${orderId},${customerId},${orderDate},${orderAmount},${status}\n`;
+    }
+    // Add 15 invalid rows to showcase validation error detection
+    csvContent += `ord_invalid_1,,2026-07-24T10:00:00Z,99.99,COMPLETED\n`; // missing customerId
+    csvContent += `ord_invalid_2,cus_22222,,99.99,PENDING\n`; // missing orderDate
+    csvContent += `ord_invalid_3,cus_33333,2026-07-24T10:00:00Z,abc,PROCESSING\n`; // invalid amount
+    csvContent += `ord_invalid_4,cus_44444,2026-07-24T10:00:00Z,99.99,\n`; // missing status
+    for (let i = 5; i <= 15; i++) {
+      csvContent += `ord_invalid_${i},,2026-07-24T10:00:00Z,10.00,\n`; // bad status and customerId
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const file = new File([blob], `simulated_orders_${Math.floor(Math.random() * 9000 + 1000)}.csv`, { type: "text/csv" });
+    handleUploadFile(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -296,17 +314,13 @@ function Index() {
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      runIngestionSimulation(file.name, `${sizeMB} MB`);
+      handleUploadFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      runIngestionSimulation(file.name, `${sizeMB} MB`);
+      handleUploadFile(e.target.files[0]);
     }
   };
 
@@ -343,8 +357,8 @@ function Index() {
               </div>
             </div>
           </div>
-          
-          <nav className="hidden items-center gap-6 text-sm font-semibold text-muted-foreground md:flex">
+
+          {/* <nav className="hidden items-center gap-6 text-sm font-semibold text-muted-foreground md:flex">
             <span className="text-indigo-600 cursor-pointer transition-colors relative after:absolute after:bottom-[-20px] after:left-0 after:h-[2px] after:w-full after:bg-indigo-600 after:scale-x-100">
               Pipeline
             </span>
@@ -352,16 +366,16 @@ function Index() {
             <span className="hover:text-slate-900 cursor-pointer transition-colors">Logs</span>
             <span className="hover:text-slate-900 cursor-pointer transition-colors">Docs</span>
           </nav>
-          
+           */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => runIngestionSimulation("manual_trigger_orders.csv", "15.1 MB")}
+            {/* <button
+              onClick={handleSimulateIngest}
               disabled={isProcessing}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 text-xs font-semibold text-white transition-all hover:bg-indigo-500 active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-sm shadow-indigo-600/15"
             >
               <RefreshCw className={`h-3 w-3 ${isProcessing ? "animate-spin" : ""}`} />
               Simulate Ingest
-            </button>
+            </button> */}
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-700 font-semibold shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
               ADC connected
@@ -387,10 +401,10 @@ function Index() {
           </div>
         </section>
 
-        {/* Top grid: Upload + Metrics */}
-        <section className="grid gap-6 lg:grid-cols-3">
+        {/* Top section: Upload */}
+        <section className="w-full">
           {/* Upload card */}
-          <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-sm hover:border-slate-300 transition-all">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm hover:border-slate-300 transition-all">
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Upload orders file</h2>
@@ -411,11 +425,10 @@ function Index() {
               onDragOver={handleDrag}
               onDragLeave={handleDrag}
               onDrop={handleDrop}
-              className={`relative rounded-xl border-2 border-dashed p-10 text-center transition-all ${
-                dragActive
-                  ? "border-indigo-500 bg-indigo-500/5 shadow-inner"
-                  : "border-slate-200 bg-slate-50/50 hover:border-indigo-400"
-              }`}
+              className={`relative rounded-xl border-2 border-dashed p-10 text-center transition-all ${dragActive
+                ? "border-indigo-500 bg-indigo-500/5 shadow-inner"
+                : "border-slate-200 bg-slate-50/50 hover:border-indigo-400"
+                }`}
             >
               <input
                 type="file"
@@ -456,11 +469,10 @@ function Index() {
                     </div>
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-                  isProcessing 
-                    ? "bg-indigo-50 text-indigo-600" 
-                    : "bg-emerald-50 text-emerald-600"
-                }`}>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${isProcessing
+                  ? "bg-indigo-50 text-indigo-600"
+                  : "bg-emerald-50 text-emerald-600"
+                  }`}>
                   {isProcessing ? (
                     <>
                       <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-ping" />
@@ -478,11 +490,11 @@ function Index() {
               <div className="mt-4">
                 <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground font-medium">
                   <span>Streaming · Parse · Validate · Batch insert</span>
-                  <span className="font-mono text-slate-700 font-bold">{parsedRows.toLocaleString()} / 10,000</span>
+                  <span className="font-mono text-slate-700 font-bold">{parsedRows.toLocaleString()} / {totalRows.toLocaleString()}</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                  <div 
-                    className="h-full rounded-full bg-indigo-600 transition-all duration-300 shadow-sm" 
+                  <div
+                    className="h-full rounded-full bg-indigo-600 transition-all duration-300 shadow-sm"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -502,29 +514,6 @@ function Index() {
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* Right column: metrics */}
-          <div className="flex flex-col gap-4">
-            <MetricCard
-              icon={<Zap className="h-4 w-4" />}
-              label="Throughput"
-              value={throughput}
-              sub="Batch size 500 · 4 workers"
-            />
-            <MetricCard
-              icon={<Clock className="h-4 w-4" />}
-              label="Avg ingest time"
-              value={avgTime}
-              sub="Last 10 uploads"
-            />
-            <MetricCard
-              icon={<Activity className="h-4 w-4" />}
-              label="Health"
-              value={isProcessing ? "Ingestion Active" : "All shards OK"}
-              sub="4/4 nodes reachable"
-              tone={isProcessing ? "warning" : "ok"}
-            />
           </div>
         </section>
 
@@ -640,11 +629,10 @@ function Index() {
               <tbody className="divide-y divide-slate-100">
                 {filteredOrders.length > 0 ? (
                   filteredOrders.map((o, idx) => (
-                    <tr 
-                      key={o.id + idx} 
-                      className={`hover:bg-slate-50/50 transition-all ${
-                        o.date === "Just Now" ? "bg-indigo-50/50 animate-pulse" : ""
-                      }`}
+                    <tr
+                      key={o.id + idx}
+                      className={`hover:bg-slate-50/50 transition-all ${o.date === "Just Now" ? "bg-indigo-50/50 animate-pulse" : ""
+                        }`}
                     >
                       <td className="px-6 py-3.5 font-mono text-xs text-slate-700 font-semibold">{o.id}</td>
                       <td className="px-6 py-3.5 font-mono text-xs text-indigo-600 font-semibold">{o.customer}</td>
@@ -722,8 +710,8 @@ function MetricCard({
             tone === "ok"
               ? "flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 shadow-xs border border-emerald-100"
               : tone === "warning"
-              ? "flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-indigo-50 text-indigo-650 shadow-xs border border-indigo-100"
-              : "flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-slate-100 text-slate-500 shadow-xs"
+                ? "flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-indigo-50 text-indigo-650 shadow-xs border border-indigo-100"
+                : "flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-slate-100 text-slate-500 shadow-xs"
           }
         >
           {icon}
@@ -782,9 +770,8 @@ function ShardCard({
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              status === "healthy" ? "bg-indigo-600" : "bg-amber-500"
-            }`}
+            className={`h-full rounded-full transition-all duration-500 ${status === "healthy" ? "bg-indigo-600" : "bg-amber-500"
+              }`}
             style={{ width: `${load}%` }}
           />
         </div>
@@ -804,12 +791,13 @@ function StatusPill({ status }: { status: string }) {
     pending: "bg-amber-50 text-amber-700 border border-amber-100",
     failed: "bg-red-50 text-red-700 border border-red-100",
     shipped: "bg-blue-50 text-blue-700 border border-blue-100",
+    processing: "bg-blue-50 text-blue-750 border border-blue-100",
+    cancelled: "bg-red-50 text-red-700 border border-red-100",
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold capitalize ${
-        map[status] ?? "bg-slate-100 text-slate-500"
-      }`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold capitalize ${map[status] ?? "bg-slate-100 text-slate-500"
+        }`}
     >
       {status}
     </span>
@@ -848,9 +836,10 @@ function levelClass(level: string) {
 /* ---------- static data ---------- */
 
 const PIPELINE = [
-  { title: "Receive multipart upload", tag: "POST /upload-orders", desc: "Express/Busboy stream piped straight to disk buffer and GCS writer stream." },
-  { title: "Archive to GCS via ADC", tag: "@google-cloud/storage", desc: "Resumable uploads to gs://ordershard-prod/uploads with checksum validation." },
-  { title: "Stream parse CSV/XLSX", tag: "fast-csv", desc: "Backpressure-aware streaming CSV reader; memory heap remains flat under 80MB." },
-  { title: "Validate + route to shard", tag: "hash(customer_id) % 4", desc: "Zod validator schemas filter schema drift. Malformed rows get logged to dead-letters." },
-  { title: "Batch INSERT in transaction", tag: "PostgreSQL COPY / multi-row", desc: "Ingestion workers bulk inserts 500 records at a time inside isolated serializable transactions." },
+  { title: "Multipart Upload & GCS Archival", tag: "POST /api/orders/upload", desc: "Express controller validates file and streams it to Google Cloud Storage (runs in LOCAL_MOCK if keys are missing)." },
+  { title: "Queue Background Job in Redis", tag: "BullMQ / ioredis", desc: "Creates a BullMQ job with the file buffer, returning 202 Accepted and Job ID immediately." },
+  { title: "Stream CSV Parsing", tag: "csv-parser", desc: "Background worker wakes up asynchronously, streaming lines from the buffer to keep memory usage flat." },
+  { title: "Row-by-Row Validation", tag: "csvValidation.service.js", desc: "Checks that customerId, orderDate, orderAmount, and status are present and valid. Skips malformed rows." },
+  { title: "Hash Shard Routing", tag: "hash(customer_id) % 4", desc: "Computes MD5 hash of customer_id to determine target PostgreSQL partition (orders_p0 to orders_p3)." },
+  { title: "Prisma Batch Insert Transaction", tag: "PostgreSQL PARTITION BY HASH", desc: "Bulk inserts valid rows in batches of 500 inside isolated Prisma transactions using skipDuplicates." },
 ];
