@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Order {
+  orderId     String   @id @default(uuid()) @map("order_id") @db.Uuid
+  customerId  String   @map("customer_id")
+  orderDate   DateTime @map("order_date")
+  orderAmount Decimal  @map("order_amount") @db.Decimal(12, 2)
+  status      OrderStatus
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@index([orderDate])
+  @@index([status])
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
