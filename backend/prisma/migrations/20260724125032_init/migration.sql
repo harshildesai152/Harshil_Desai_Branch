@@ -11,8 +11,14 @@ CREATE TABLE "orders" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "orders_pkey" PRIMARY KEY ("order_id")
-);
+    CONSTRAINT "orders_pkey" PRIMARY KEY ("order_id","customer_id")
+) PARTITION BY HASH (customer_id);
+
+-- Create Partitions
+CREATE TABLE "orders_p0" PARTITION OF "orders" FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+CREATE TABLE "orders_p1" PARTITION OF "orders" FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+CREATE TABLE "orders_p2" PARTITION OF "orders" FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+CREATE TABLE "orders_p3" PARTITION OF "orders" FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 
 -- CreateIndex
 CREATE INDEX "orders_customer_id_idx" ON "orders"("customer_id");

@@ -7,7 +7,7 @@ datasource db {
 }
 
 model Order {
-  orderId     String   @id @default(uuid()) @map("order_id") @db.Uuid
+  orderId     String   @default(uuid()) @map("order_id") @db.Uuid
   customerId  String   @map("customer_id")
   orderDate   DateTime @map("order_date")
   orderAmount Decimal  @map("order_amount") @db.Decimal(12, 2)
@@ -16,6 +16,7 @@ model Order {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  @@id([orderId, customerId])
   @@index([customerId])
   @@index([orderDate])
   @@index([status])

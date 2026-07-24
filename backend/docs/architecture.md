@@ -1,7 +1,7 @@
                           Client
                              │
                              ▼
-                  POST /upload-orders
+                  POST /api/orders/upload
                              │
                              ▼
                   Express Controller
@@ -10,44 +10,37 @@
                              │
                              ▼
              Upload file to Google Cloud Storage
-                  (Application Default Credentials)
+              (LOCAL_MOCK mode if dummy keys)
                              │
                              ▼
-             Create BullMQ Job (Stored in Redis)
+             Create BullMQ Job (Pass fileBuffer)
                              │
                  Return 202 Accepted + Job ID
                              │
-────────────────────────────────────────────────────────────
+ ────────────────────────────────────────────────────────────
 
                       Redis (BullMQ Queue)
 
-────────────────────────────────────────────────────────────
+ ────────────────────────────────────────────────────────────
                              │
                              ▼
-                    Background Worker
-                             │
-                  Download file from GCS
+                     Background Worker
                              │
                              ▼
-                  Stream CSV Parser
+                  Stream CSV Parser (from buffer)
                      (No full file in memory)
                              │
                              ▼
                   Validate each record
                              │
-          Invalid rows → invalid_orders table / log
+            Invalid rows → increment invalidCount
                              │
                              ▼
-                Shard Router Service
-             hash(customer_id) % 4
-                             │
-                 Batch records per shard
+                 PostgreSQL (Database-level Partitioning)
+                    hash(customer_id) % 4
                              │
                              ▼
-          PostgreSQL (Application-level Sharding)
+                 Batch Insert + Transaction
                              │
                              ▼
-              Batch Insert + Transaction
-                             │
-                             ▼
-                 Update Job Status (Redis)
+                  Update Job Status (Redis)
