@@ -44,12 +44,24 @@ C:\New folder (2)
 * **Google Cloud Account** (for GCS buckets)
 
 ## 6. Installation
+
+### Backend Setup
 Navigate to the `backend` folder and run:
 ```bash
+cd backend
+npm install
+```
+
+### Frontend Setup
+Navigate to the `frontend` folder and run:
+```bash
+cd frontend
 npm install
 ```
 
 ## 7. Environment Variables
+
+### Backend Configuration
 Create a `.env` file in the `backend/` folder based on `.env.example`:
 ```env
 PORT=5000
@@ -59,6 +71,12 @@ REDIS_PORT=6379
 GCP_PROJECT_ID=your-gcp-project-id
 GCP_KEY_FILE=path/to/keyfile.json
 GCP_BUCKET_NAME=your-gcs-bucket-name
+```
+
+### Frontend Configuration
+Create a `.env` file in the `frontend/` folder:
+```env
+VITE_API_BASE_URL=http://localhost:5000
 ```
 
 ## 8. Database Migration
@@ -79,8 +97,18 @@ gcloud auth application-default login
 ```
 
 ## 10. Running the Project
-Start the development server (runs nodemon):
+
+### Start Backend Server
+Navigate to the `backend` folder and start the dev server (runs nodemon):
 ```bash
+cd backend
+npm run dev
+```
+
+### Start Frontend Console
+Navigate to the `frontend` folder and start the dev server (runs Vite):
+```bash
+cd frontend
 npm run dev
 ```
 
